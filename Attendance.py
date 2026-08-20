@@ -10,8 +10,9 @@ from datetime import datetime
 # Configuration
 # -----------------------------
 
-STUDENTS_DIR = "Students"
-LOGS_DIR = "Logs"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STUDENTS_DIR = os.path.join(BASE_DIR, "Students")
+LOGS_DIR = os.path.join(BASE_DIR, "Logs")
 ATTENDANCE_FILE = os.path.join(LOGS_DIR, "attendance.csv")
 
 FRAME_SCALE = 0.25
