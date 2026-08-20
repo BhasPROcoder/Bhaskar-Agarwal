@@ -44,7 +44,7 @@ for filename in os.listdir(STUDENTS_DIR):
 
         known_face_encodings.append(encodings[0])
 
-        # Remove file extension to get student's name
+        # Use the filename as the student's name
         name = os.path.splitext(filename)[0]
         name = name.replace("_", " ")
 
@@ -79,29 +79,34 @@ if not os.path.exists(ATTENDANCE_FILE):
 
 
 # -----------------------------
+# Load today's attendance
+# -----------------------------
+
+marked_today = set()
+
+today = datetime.now().strftime("%Y-%m-%d")
+
+with open(ATTENDANCE_FILE, "r", newline="") as file:
+
+    reader = csv.reader(file)
+    next(reader, None)
+
+    for row in reader:
+
+        if len(row) >= 2 and row[1] == today:
+            marked_today.add(row[0])
+
+
+# -----------------------------
 # Function to mark attendance
 # -----------------------------
 
 def mark_attendance(name):
 
-    today = datetime.now().strftime("%Y-%m-%d")
+    # Don't mark the same student twice
+    if name in marked_today:
+        return
 
-    # Read today's existing attendance
-    with open(ATTENDANCE_FILE, "r", newline="") as file:
-
-        reader = csv.reader(file)
-        next(reader, None)
-
-        for row in reader:
-
-            if len(row) >= 2:
-                existing_name = row[0]
-                existing_date = row[1]
-
-                if existing_name == name and existing_date == today:
-                    return
-
-    # Add new attendance entry
     current_time = datetime.now().strftime("%H:%M:%S")
 
     with open(ATTENDANCE_FILE, "a", newline="") as file:
@@ -113,6 +118,8 @@ def mark_attendance(name):
             today,
             current_time
         ])
+
+    marked_today.add(name)
 
     print(f"Attendance marked: {name}")
 
@@ -126,6 +133,7 @@ video_capture = cv2.VideoCapture(0)
 
 while True:
 
+    # Grab a frame from the webcam
     ret, frame = video_capture.read()
 
     if not ret:
@@ -133,7 +141,10 @@ while True:
         break
 
 
+    # -----------------------------
     # Resize frame for faster processing
+    # -----------------------------
+
     small_frame = cv2.resize(
         frame,
         (0, 0),
@@ -149,7 +160,10 @@ while True:
     )
 
 
-    # Find faces
+    # -----------------------------
+    # Detect faces
+    # -----------------------------
+
     face_locations = face_recognition.face_locations(
         rgb_small_frame
     )
@@ -163,16 +177,21 @@ while True:
     face_names = []
 
 
-    # Compare detected faces with known faces
+    # -----------------------------
+    # Compare detected faces
+    # -----------------------------
+
     for face_encoding in face_encodings:
 
         name = "Unknown"
 
+        # Compare the detected face with known faces
         matches = face_recognition.compare_faces(
             known_face_encodings,
             face_encoding
         )
 
+        # Calculate the distance between faces
         face_distances = face_recognition.face_distance(
             known_face_encodings,
             face_encoding
@@ -181,6 +200,7 @@ while True:
 
         if len(face_distances) > 0:
 
+            # Find the closest known face
             best_match_index = np.argmin(face_distances)
 
             if matches[best_match_index]:
@@ -199,14 +219,14 @@ while True:
         face_names
     ):
 
-        # Scale coordinates back to original frame
+        # Convert coordinates back to original frame size
         top = int(top / FRAME_SCALE)
         right = int(right / FRAME_SCALE)
         bottom = int(bottom / FRAME_SCALE)
         left = int(left / FRAME_SCALE)
 
 
-        # Draw face rectangle
+        # Draw rectangle around face
         cv2.rectangle(
             frame,
             (left, top),
@@ -238,12 +258,15 @@ while True:
         )
 
 
-        # Mark attendance
+        # Mark attendance for recognized students
         if name != "Unknown":
             mark_attendance(name)
 
 
+    # -----------------------------
     # Display webcam
+    # -----------------------------
+
     cv2.imshow(
         "Face Recognition Attendance",
         frame
